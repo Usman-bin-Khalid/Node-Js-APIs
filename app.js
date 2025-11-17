@@ -9,14 +9,22 @@ const authRoutes = require('./routes/authRoutes');
 const app = express();
 
 // --- 1. Middleware Setup ---
-// Middleware to parse incoming JSON request bodies (VERY important for API)
-// app.use(express.json());
-app.use(express.urlencoded({ extended: true })); // x-www-urlencoded mai data send krny ky liy
+// Middleware to parse incoming JSON request bodies (for testing with JSON)
+app.use(express.json());
+// Middleware to parse incoming URL-encoded bodies (for testing with x-www-form-urlencoded and form-data)
+app.use(express.urlencoded({ extended: true }));
 
 // --- 2. Database Connection ---
 const MONGO_URI = process.env.MONGO_URI;
 const PORT = process.env.PORT || 3000;
 
+/**
+ * Explanation on Database Name Creation:
+ * The database name (e.g., 'authDB') is set in the MONGO_URI variable in the .env file.
+ * MongoDB automatically creates the database and its collections (like 'users') 
+ * the first time you execute a write operation (like saving a new user).
+ * To use a database named 'test', change MONGO_URI in .env to: mongodb://localhost:27017/test
+ */
 const connectDB = async () => {
     try {
         await mongoose.connect(MONGO_URI);
@@ -46,5 +54,6 @@ connectDB().then(() => {
         console.log(`🚀 Server is running on port ${PORT}`);
         console.log(`➡️  Try the health check: http://localhost:${PORT}`);
         console.log(`➡️  Sign-up endpoint: http://localhost:${PORT}/api/auth/signup`);
+        console.log(`➡️  Login endpoint: http://localhost:${PORT}/api/auth/login`);
     });
 });
