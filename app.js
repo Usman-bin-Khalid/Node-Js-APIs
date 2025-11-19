@@ -4,6 +4,8 @@ const mongoose = require('mongoose');
 
 // Import the routes
 const authRoutes = require('./routes/authRoutes');
+// --- NEW: Import the profile routes ---
+const profileRoutes = require('./routes/profileRoutes');
 
 // Initialize the Express app
 const app = express();
@@ -45,6 +47,10 @@ app.get('/', (req, res) => {
 // User Authentication Routes
 // All routes defined in authRoutes will be prefixed with /api/auth
 app.use('/api/auth', authRoutes);
+
+// --- NEW: User Profile Routes ---
+// All routes defined in profileRoutes will be prefixed with /api/profile
+app.use('/api/profile', profileRoutes);
 
 
 // --- 4. Start Server ---
