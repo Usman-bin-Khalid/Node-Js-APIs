@@ -53,6 +53,9 @@ app.use('/api/auth', authRoutes);
 // All routes defined in profileRoutes will be prefixed with /api/profile
 app.use('/api/profile', profileRoutes);
 
+// All routes for products would go here (not shown in this snippet)
+app.use('/api/products', require('./routes/productRoutes'));
+
 
 // --- 4. Start Server ---
 // Connect to DB and then start the server
