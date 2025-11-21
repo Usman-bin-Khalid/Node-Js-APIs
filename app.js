@@ -48,6 +48,7 @@ app.get('/', (req, res) => {
 // All routes defined in authRoutes will be prefixed with /api/auth
 app.use('/api/auth', authRoutes);
 
+
 // --- NEW: User Profile Routes ---
 // All routes defined in profileRoutes will be prefixed with /api/profile
 app.use('/api/profile', profileRoutes);

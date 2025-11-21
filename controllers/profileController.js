@@ -83,4 +83,39 @@ exports.updateProfile = async (req, res) => {
         // If the deletion or update failed, it's a server error.
         res.status(500).send('Server Error');
     }
+
+
+    
 };
+
+exports.deleteProfile = async (req, res) => {
+    try {
+        const userId = getUserId(req);
+
+        // 1. Find the user's profile
+        const profile = await Profile.findOne({ userId });
+
+        if (!profile) {
+            return res.status(404).json({ msg: "Profile not found" });
+        }
+
+        // 2. Delete image from Cloudinary if exists
+        if (profile.cloudinaryId) {
+            try {
+                await cloudinary.uploader.destroy(profile.cloudinaryId);
+            } catch (err) {
+                console.log("Cloudinary delete error:", err.message);
+            }
+        }
+
+        // 3. Delete the profile from MongoDB
+        await Profile.findOneAndDelete({ userId });
+
+        res.json({ msg: "Profile deleted successfully" });
+
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send("Server Error");
+    }
+};
+

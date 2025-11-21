@@ -20,4 +20,6 @@ router.post(
     profileController.updateProfile
 );
 
+
+router.delete('/', authMiddleware, profileController.deleteProfile);
 module.exports = router;
