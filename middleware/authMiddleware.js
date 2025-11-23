@@ -17,6 +17,7 @@ const authMiddleware = (req, res, next) => {
 
     // Extract the token (remove 'Bearer ')
     const token = authHeader.split(' ')[1];
+    
 
     // 2. Verify token
     try {

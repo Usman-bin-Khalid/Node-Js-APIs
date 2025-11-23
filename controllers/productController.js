@@ -110,6 +110,7 @@ exports.updateProduct = async (req, res) => {
         if (!product) {
             // Cleanup any newly uploaded images if product isn't found
             const deletePromises = newImages.map(file => cloudinary.uploader.destroy(file.filename));
+            
             await Promise.all(deletePromises).catch(deleteErr => console.error('Failed to cleanup on 404:', deleteErr.message));
             return res.status(404).json({ msg: 'Product not found' });
         }
