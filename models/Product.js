@@ -1,17 +1,29 @@
 const mongoose = require('mongoose');
 
+// 1. Define the Schema for individual reviews
+const reviewSchema = mongoose.Schema(
+    {
+        name: { type: String, required: true }, // Name of the reviewer
+        rating: { type: Number, required: true }, // e.g., 1 to 5
+        comment: { type: String, required: true },
+        user: {
+            type: mongoose.Schema.Types.ObjectId,
+            required: true,
+            ref: 'User', // Links the review to a specific user
+        },
+    },
+    {
+        timestamps: true, // Adds createdAt for the review itself
+    }
+);
+
+// 2. Your existing Product Schema (with new fields added)
 const ProductSchema = new mongoose.Schema({
-    // Reference to the user who created the product (the seller/admin)
     userId: {
         type: mongoose.Schema.Types.ObjectId,
         required: true,
-        ref: 'User' // Assuming you have a User model
+        ref: 'User'
     },
-    // You mentioned productid, but MongoDB already creates _id, 
-    // so we'll use that as the unique identifier.
-    // product_sku could be an optional string field if a custom ID is required:
-    // product_sku: { type: String, unique: true }, 
-    
     name: {
         type: String,
         required: [true, 'Product name is required'],
@@ -32,17 +44,26 @@ const ProductSchema = new mongoose.Schema({
         required: [true, 'Product quantity is required'],
         min: [0, 'Quantity cannot be negative']
     },
-    // Array to store multiple image URLs and their public IDs from Cloudinary
     images: [{
-        url: {
-            type: String, // The secure_url from Cloudinary
-            required: true
-        },
-        cloudinaryId: {
-            type: String, // The public_id from Cloudinary
-            required: true
-        }
+        url: { type: String, required: true },
+        cloudinaryId: { type: String, required: true }
     }],
+    
+    // --- NEW SECTIONS FOR REVIEWS ---
+    reviews: [reviewSchema], // An array containing the reviews
+    
+    rating: {
+        type: Number,
+        required: true,
+        default: 0, // Average rating (e.g., 4.5)
+    },
+    numReviews: {
+        type: Number,
+        required: true,
+        default: 0, // Total count of reviews
+    },
+    // -------------------------------
+
     createdAt: {
         type: Date,
         default: Date.now

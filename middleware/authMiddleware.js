@@ -9,7 +9,7 @@ const jwtSecret = process.env.JWT_SECRET;
 const authMiddleware = (req, res, next) => {
     // 1. Get token from header
     const authHeader = req.headers.authorization;
-    
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         // 401 Unauthorized: token missing or badly formatted
         return res.status(401).json({ msg: 'Authorization denied. No token or incorrect format.' });

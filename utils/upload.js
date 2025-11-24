@@ -13,6 +13,7 @@ const storage = new CloudinaryStorage({
     },
 });
 
+
 // Configure Multer
 // 'images' is the field name used in the form-data
 const uploadMultiple = multer({ storage: storage }).array('images', 5); // Allow up to 5 images

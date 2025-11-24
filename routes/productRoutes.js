@@ -41,4 +41,13 @@ router.put(
 // @access  Private
 router.delete('/:id', authMiddleware, productController.deleteProduct);
 
+// @route   POST /api/products/:id/reviews
+// @desc    Create a new review (Private)
+// @access  Private
+router.post(
+    '/:id/reviews', 
+    authMiddleware, 
+    productController.createProductReview
+);
+
 module.exports = router;

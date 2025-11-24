@@ -1,4 +1,5 @@
 const Product = require('../models/Product');
+const User = require('../models/User');
 // Assuming cloudinary is imported and configured correctly
 const { cloudinary } = require('../utils/cloudinaryConfig'); 
 const mongoose = require('mongoose');
@@ -17,6 +18,7 @@ exports.addProduct = async (req, res) => {
     
     if (!images || images.length === 0) {
         return res.status(400).json({ msg: 'Please upload at least one product image' });
+        
     }
 
     try {
@@ -87,6 +89,7 @@ exports.getMyProducts = async (req, res) => {
         console.error(err.message);
         res.status(500).send('Server Error');
     }
+
 };
 
 // --- UPDATE ---
@@ -110,7 +113,7 @@ exports.updateProduct = async (req, res) => {
         if (!product) {
             // Cleanup any newly uploaded images if product isn't found
             const deletePromises = newImages.map(file => cloudinary.uploader.destroy(file.filename));
-            
+
             await Promise.all(deletePromises).catch(deleteErr => console.error('Failed to cleanup on 404:', deleteErr.message));
             return res.status(404).json({ msg: 'Product not found' });
         }
@@ -189,6 +192,7 @@ exports.deleteProduct = async (req, res) => {
             cloudinary.uploader.destroy(image.cloudinaryId)
         );
 
+
         // Run all deletions concurrently
         await Promise.all(deletePromises)
             .then(() => console.log(`Successfully deleted ${product.images.length} images from Cloudinary`))
@@ -198,6 +202,68 @@ exports.deleteProduct = async (req, res) => {
         await Product.findOneAndDelete({ _id: productId });
 
         res.json({ msg: 'Product deleted successfully' });
+
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+};
+
+// --- ADD REVIEW ---
+// @route   POST /api/products/:id/reviews
+// @desc    Create a new review
+// @access  Private
+exports.createProductReview = async (req, res) => {
+    const { rating, comment } = req.body;
+    const productId = req.params.id;
+    
+    // specific to your helper function usage
+    const userId = req.user.id; 
+
+    try {
+        const product = await Product.findById(productId);
+
+        if (!product) {
+            return res.status(404).json({ msg: 'Product not found' });
+        }
+
+        // 1. Check if the user has already reviewed this product
+        // We look through the reviews array to see if the user ID exists
+        const alreadyReviewed = product.reviews.find(
+            (r) => r.user.toString() === userId.toString()
+        );
+
+        if (alreadyReviewed) {
+            return res.status(400).json({ msg: 'You have already reviewed this product' });
+        }
+
+        // 2. Fetch the user's name to save with the review
+        const user = await User.findById(userId);
+
+        // 3. Create the review object
+        const review = {
+            name: user.name, // Saves the name at the time of review
+            rating: Number(rating),
+            comment,
+            user: userId,
+        };
+
+        // 4. Push review to array
+        product.reviews.push(review);
+
+        // 5. Update total number of reviews
+        product.numReviews = product.reviews.length;
+
+        // 6. Calculate the new Average Rating
+        // (Sum of all ratings / Number of reviews)
+        product.rating =
+            product.reviews.reduce((acc, item) => item.rating + acc, 0) /
+            product.reviews.length;
+
+        // 7. Save to Database
+        await product.save();
+
+        res.status(201).json({ msg: 'Review added successfully' });
 
     } catch (err) {
         console.error(err.message);
