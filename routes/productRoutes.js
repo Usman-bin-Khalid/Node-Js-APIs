@@ -1,53 +1,133 @@
 const express = require('express');
 const router = express.Router();
 const productController = require('../controllers/productController');
-const authMiddleware = require('../middleware/authMiddleware'); // Your JWT middleware
-const { uploadMultiple } = require('../utils/upload'); // The configured Multer middleware
+const authMiddleware = require('../middleware/authMiddleware');
+const { uploadMultiple } = require('../utils/upload');
 
-// @route   GET /api/products
-// @desc    Get all products (Public)
-// @access  Public
+/**
+ * @swagger
+ * tags:
+ *   name: Products
+ *   description: Product CRUD APIs
+ */
+
+/**
+ * @swagger
+ * /api/products:
+ *   get:
+ *     summary: Get all products (public)
+ *     tags: [Products]
+ *     responses:
+ *       200:
+ *         description: List of products
+ */
 router.get('/', productController.getProducts);
 
-// @route   GET /api/products/my
-// @desc    Get all products created by the authenticated user (Private)
-// @access  Private
+/**
+ * @swagger
+ * /api/products/my:
+ *   get:
+ *     summary: Get authenticated user's products
+ *     tags: [Products]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of user products
+ */
 router.get('/my', authMiddleware, productController.getMyProducts);
 
+/**
+ * @swagger
+ * /api/products:
+ *   post:
+ *     summary: Create a new product
+ *     tags: [Products]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               price:
+ *                 type: number
+ *               images:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *     responses:
+ *       201:
+ *         description: Product created successfully
+ */
+router.post('/', authMiddleware, uploadMultiple, productController.addProduct);
 
-// @route   POST /api/products
-// @desc    Add a new product (Private)
-// @access  Private
-router.post(
-    '/', 
-    authMiddleware, 
-    uploadMultiple, 
-    productController.addProduct
-);
+/**
+ * @swagger
+ * /api/products/{id}:
+ *   put:
+ *     summary: Update a product
+ *     tags: [Products]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *     responses:
+ *       200:
+ *         description: Product updated
+ */
+router.put('/:id', authMiddleware, uploadMultiple, productController.updateProduct);
 
-// @route   PUT /api/products/:id
-// @desc    Update a specific product (Private - Creator Only)
-// @access  Private
-// Uses uploadMultiple in case the user wants to add more images during an update
-router.put(
-    '/:id', 
-    authMiddleware, 
-    uploadMultiple, // Use the same middleware to handle optional new image uploads
-    productController.updateProduct
-);
-
-// @route   DELETE /api/products/:id
-// @desc    Delete a specific product (Private - Creator Only)
-// @access  Private
+/**
+ * @swagger
+ * /api/products/{id}:
+ *   delete:
+ *     summary: Delete a product
+ *     tags: [Products]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *     responses:
+ *       200:
+ *         description: Product deleted
+ */
 router.delete('/:id', authMiddleware, productController.deleteProduct);
 
-// @route   POST /api/products/:id/reviews
-// @desc    Create a new review (Private)
-// @access  Private
-router.post(
-    '/:id/reviews', 
-    authMiddleware, 
-    productController.createProductReview
-);
+/**
+ * @swagger
+ * /api/products/{id}/reviews:
+ *   post:
+ *     summary: Add a review to product
+ *     tags: [Products]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               rating:
+ *                 type: number
+ *               comment:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Review added
+ */
+router.post('/:id/reviews', authMiddleware, productController.createProductReview);
 
 module.exports = router;

@@ -1,38 +1,46 @@
 const jwt = require('jsonwebtoken');
-// Load JWT_SECRET from environment variables
+// 🚨 NEW IMPORT: Import the User model
+const User = require('../models/User'); // Adjust path as needed
 const jwtSecret = process.env.JWT_SECRET; 
 
 /**
- * Middleware to verify JWT from the Authorization header and attach user ID to the request.
- * * Assumes the token is sent in the format: 'Bearer <token>'
+ * Middleware to verify JWT and attach the FULL user document to the request.
+ * Assumes the token is sent in the format: 'Bearer <token>'
  */
-const authMiddleware = (req, res, next) => {
+// 🚨 CHANGE TO ASYNC 🚨
+const authMiddleware = async (req, res, next) => { 
     // 1. Get token from header
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        // 401 Unauthorized: token missing or badly formatted
         return res.status(401).json({ msg: 'Authorization denied. No token or incorrect format.' });
     }
 
     // Extract the token (remove 'Bearer ')
     const token = authHeader.split(' ')[1];
     
-
     // 2. Verify token
     try {
-        // The token verification uses your JWT_SECRET from the .env file.
-        // It decodes the payload, which should contain the user's ID.
         const decoded = jwt.verify(token, jwtSecret);
 
-        // Assuming your token payload contains the user's ID under the key 'id'
-        // Example: { id: 'actual_user_mongo_id', iat: ..., exp: ... }
-        req.user = { id: decoded.id };
+        // 🚨 CRITICAL CHANGE 🚨
+        // Use the ID from the token (decoded.id) to fetch the User document from the database.
+        // We exclude the password field for security.
+        const user = await User.findById(decoded.id).select('-password'); 
+
+        if (!user) {
+            // If the user was deleted but the token is still valid
+            return res.status(401).json({ msg: 'Token is valid, but user not found.' });
+        }
+
+        // 3. Attach the full Mongoose user document to req.user
+        // This ensures req.user._id is populated correctly.
+        req.user = user; 
 
         // Proceed to the next middleware or route handler
         next();
     } catch (err) {
-        // 401 Unauthorized: token is not valid (expired, corrupted, wrong secret)
+        console.error(err); // Log the actual error on the server side
         return res.status(401).json({ msg: 'Token is not valid or has expired.' });
     }
 };

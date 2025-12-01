@@ -1,69 +1,170 @@
-require('dotenv').config(); // Load environment variables from .env file
+const swaggerDocs = require('./swagger');
+
 const express = require('express');
+const http = require('http'); // 1. Import http module for Socket.IO
+const socketio = require('socket.io'); // 2. Import socket.io
+const dotenv = require('dotenv');
 const mongoose = require('mongoose');
+const jwt = require('jsonwebtoken'); 
+const path = require('path');
 
-// Import the routes
+// Load environment variables
+dotenv.config();
+
+// Models
+const Conversation = require('./models/Conversation');
+const Message = require('./models/Message');
+
+// Routes
 const authRoutes = require('./routes/authRoutes');
-// --- NEW: Import the profile routes ---
-const profileRoutes = require('./routes/profileRoutes');
+const chatRoutes = require('./routes/chatRoutes');
+// Import your existing routes
+const profileRoutes = require('./routes/profileRoutes'); // Existing route
+const productRoutes = require('./routes/productRoutes'); // Existing route
 
-// Initialize the Express app
 const app = express();
-
-// --- 1. Middleware Setup ---
-// Middleware to parse incoming JSON request bodies (for testing with JSON)
-app.use(express.json());
-// Middleware to parse incoming URL-encoded bodies (for testing with x-www-form-urlencoded and form-data)
-app.use(express.urlencoded({ extended: true }));
-
-// --- 2. Database Connection ---
-const MONGO_URI = process.env.MONGO_URI;
-const PORT = process.env.PORT || 3000;
-
-/**
- * Explanation on Database Name Creation:
- * The database name (e.g., 'authDB') is set in the MONGO_URI variable in the .env file.
- * MongoDB automatically creates the database and its collections (like 'users') 
- * the first time you execute a write operation (like saving a new user).
- * To use a database named 'test', change MONGO_URI in .env to: mongodb://localhost:27017/test
- */
-const connectDB = async () => {
-    try {
-        await mongoose.connect(MONGO_URI);
-        console.log('✅ MongoDB connected successfully!');
-    } catch (err) {
-        console.error('❌ MongoDB connection FAILED:', err.message);
-        // Exit process with failure
-        process.exit(1);
+const server = http.createServer(app); // 3. Create HTTP server from Express app
+const io = socketio(server, { // 4. Attach Socket.IO to the HTTP server
+    cors: {
+        origin: "*", 
+        methods: ["GET", "POST"]
     }
-};
-
-// --- 3. Route Setup ---
-// Basic Test Route
-app.get('/', (req, res) => {
-    res.send('API Status: Running. Use POST /api/auth/signup to register.');
 });
 
-// User Authentication Routes
-// All routes defined in authRoutes will be prefixed with /api/auth
-app.use('/api/auth', authRoutes);
+// Middleware
+app.use(express.json()); // For parsing application/json
+app.use(express.urlencoded({ extended: true }));
+// --- Database Connection ---
+mongoose.connect(process.env.MONGO_URI)
+    .then(() => {
+        console.log('✅ MongoDB connected successfully!');        
+    })
+    .catch(err => {
+        console.error('❌ MongoDB connection FAILED:', err.message);
+        process.exit(1);
+    });
+
+// --- REST API Routes ---
+// Basic Health Check Route (from your old app.js)
+app.get('/', (req, res) => {
+    res.send('API Status: Running. Server is listening for REST and Socket connections.');
+});
+
+// Mount your existing routes
+app.use('/api/auth', authRoutes); 
+app.use('/api/profile', profileRoutes); // Added from your old app.js
+app.use('/api/products', productRoutes); // Added from your old app.js
+
+// Mount the new chat routes
+app.use('/api/chat', chatRoutes); 
+
+// --- Socket.IO Real-time Connection Setup ---
+
+// Map to track connected users and their socket IDs (for direct messaging)
+const activeUsers = new Map(); // Key: userId (string), Value: socketId
+
+// Middleware to authenticate the socket connection using JWT
+io.use((socket, next) => {
+    const token = socket.handshake.auth.token;
+
+    if (token) {
+        try {
+            // Verify and decode the JWT
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            // Attach the user ID to the socket object
+            socket.userId = decoded.id; 
+            next(); // Allow connection
+        } catch (error) {
+            console.error('Socket Auth Error:', error.message);
+            next(new Error('Authentication error: Invalid token.'));
+        }
+    } else {
+        next(new Error('Authentication error: Token required.'));
+    }
+});
 
 
-// --- NEW: User Profile Routes ---
-// All routes defined in profileRoutes will be prefixed with /api/profile
-app.use('/api/profile', profileRoutes);
+io.on('connection', (socket) => {
+    console.log(`User connected: ${socket.userId} (${socket.id})`);
 
-// All routes for products would go here (not shown in this snippet)
-app.use('/api/products', require('./routes/productRoutes'));
+    // Add user to the activeUsers map
+    activeUsers.set(socket.userId, socket.id);
+    
+    // Notify all users about the updated list of online users (optional)
+    io.emit('onlineUsers', Array.from(activeUsers.keys()));
 
 
-// --- 4. Start Server ---
-// Connect to DB and then start the server
-connectDB().then(() => {
-    app.listen(PORT, () => {
-        console.log(`🚀 Server is running on port ${PORT}`);
-        console.log(`➡️  Try the health check: http://localhost:${PORT}`);
-        console.log(`➡️  Sign-up endpoint: http://localhost:${PORT}/api/auth/signup`);
-        console.log(`➡️  Login endpoint: http://localhost:${PORT}/api/auth/login`);
+    // --- 1. Handle sending a new message ---
+    socket.on('sendMessage', async ({ recipientId, content }) => {
+        const senderId = socket.userId;
+
+        try {
+            // 1. Find or Create Conversation
+            let conversation = await Conversation.findOne({
+                participants: { 
+                    $all: [senderId, recipientId], 
+                    $size: 2 
+                }
+            });
+
+            if (!conversation) {
+                conversation = await Conversation.create({
+                    participants: [senderId, recipientId]
+                });
+            }
+
+            // 2. Save Message to Database
+            const newMessage = await Message.create({
+                content,
+                sender: senderId,
+                recipient: recipientId,
+                conversation: conversation._id,
+            });
+
+            // 3. Update the conversation's last message reference and update timestamp
+            conversation.lastMessage = newMessage._id;
+            await conversation.save();
+
+            // Prepare the message object for real-time delivery
+            const messageToSend = await newMessage.populate('sender', 'name email');
+            
+            // 4. Real-time Delivery
+            const recipientSocketId = activeUsers.get(recipientId);
+
+            // Emit to the recipient
+            if (recipientSocketId) {
+                io.to(recipientSocketId).emit('newMessage', messageToSend);
+                io.to(recipientSocketId).emit('inboxUpdate', { conversationId: conversation._id, lastMessage: messageToSend });
+            }
+            
+            // Emit confirmation back to the sender's client
+            socket.emit('messageSentConfirmation', messageToSend);
+
+
+        } catch (error) {
+            console.error('Error handling sendMessage:', error);
+            socket.emit('messageError', { 
+                recipientId, 
+                content, 
+                error: 'Failed to send and save message.' 
+            });
+        }
+    });
+
+    // --- 2. Handle when user disconnects ---
+    socket.on('disconnect', () => {
+        console.log(`User disconnected: ${socket.userId} (${socket.id})`);
+        
+        // Remove the user/socket from the active users map
+        activeUsers.delete(socket.userId);
+        
+        // Broadcast the updated online users list
+        io.emit('onlineUsers', Array.from(activeUsers.keys()));
     });
 });
+
+
+// --- Start Server ---
+// 5. Use server.listen() instead of app.listen()
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => console.log(`🚀 Server is running on port ${PORT}`));
