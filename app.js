@@ -15,6 +15,30 @@ dotenv.config();
 const Conversation = require('./models/Conversation');
 const Message = require('./models/Message');
 
+
+const swaggerUi = require('swagger-ui-express');
+const swaggerJsDoc = require('swagger-jsdoc');
+
+const swaggerOptions = {
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'Node API Documentation',
+      version: '1.0.0',
+      description: 'API documentation for your Node.js backend',
+    },
+    servers: [
+      {
+        url: 'https://node-js-apis-lapr.onrender.com',
+      },
+    ],
+  },
+  apis: ['./routes/*.js'],  // all route files will be scanned
+};
+
+const swaggerDocs = swaggerJsDoc(swaggerOptions);
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+
 // Routes
 const authRoutes = require('./routes/authRoutes');
 const chatRoutes = require('./routes/chatRoutes');
