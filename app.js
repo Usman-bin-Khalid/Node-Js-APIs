@@ -27,11 +27,12 @@ const swaggerOptions = {
       version: '1.0.0',
       description: 'API documentation for your Node.js backend',
     },
-    servers: [
-      {
-        url: 'https://node-js-apis-lapr.onrender.com',
-      },
-    ],
+      servers: [
+  {
+    url: "https://node-js-apis-3.onrender.com",
+    description: "Live Server"
+  }
+],
   },
   apis: ['./routes/*.js'],
 };

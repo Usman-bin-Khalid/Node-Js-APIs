@@ -10,10 +10,12 @@ const options = {
       description: "API documentation for Auth, Profile, Products, and Chat APIs"
     },
     servers: [
-      {
-        url: "https://node-js-apis-3.onrender.com"  // Replace with your Render deployment URL
-      }
-    ]
+  {
+    url: "https://node-js-apis-3.onrender.com",
+    description: "Live Server"
+  }
+],
+
   },
 
   // Pointing to route files where swagger comments will be written
