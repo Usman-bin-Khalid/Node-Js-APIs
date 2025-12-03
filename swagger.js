@@ -11,7 +11,7 @@ const options = {
     },
     servers: [
       {
-        url: "https://<your-render-url>"  // Replace with your Render deployment URL
+        url: "https://node-js-apis-3.onrender.com"  // Replace with your Render deployment URL
       }
     ]
   },
