@@ -8,12 +8,14 @@ const messageSchema = new mongoose.Schema({
         trim: true,
     },
     
+    
     // Who sent the message
     sender: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true,
     },
+
 
     // Who received the message (optional in a room setting, but useful for 1:1)
     recipient: {

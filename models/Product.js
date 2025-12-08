@@ -12,6 +12,18 @@ const reviewSchema = mongoose.Schema(
             ref: 'User', // Links the review to a specific user
         },
     },
+
+
+
+
+
+
+
+
+
+
+
+
     {
         timestamps: true, // Adds createdAt for the review itself
     }
@@ -71,3 +83,4 @@ const ProductSchema = new mongoose.Schema({
 });
 
 module.exports = mongoose.model('Product', ProductSchema);
+
